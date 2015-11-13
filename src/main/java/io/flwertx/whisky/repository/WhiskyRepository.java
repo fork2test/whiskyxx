@@ -1,6 +1,6 @@
-package io.vertx.blog.first.repository;
+package io.flwertx.whisky.repository;
 
-import io.vertx.blog.first.model.Whisky;
+import io.flwertx.whisky.model.Whisky;
 import io.vertx.core.AsyncResult;
 import io.vertx.core.Future;
 import io.vertx.core.Handler;
@@ -25,37 +25,22 @@ public class WhiskyRepository
       this.jdbcClient = jdbcClient;
    }
 
-   public void startBackend(Handler<AsyncResult<SQLConnection>> handler, Future<Void> future)
-   {
-      jdbcClient.getConnection(ar -> {
-         if (ar.failed())
-         {
-            future.fail(ar.cause());
-         }
-         else
-         {
-            handler.handle(Future.succeededFuture(ar.result()));
-         }
-      });
-   }
-
-   public void createSomeData(AsyncResult<SQLConnection> result, Handler<AsyncResult<Void>> next, Future<Void> fut)
+   public void createSomeData(Handler<AsyncResult<Void>> next)
    {
       String sql = "CREATE TABLE IF NOT EXISTS Whisky (id INTEGER IDENTITY, name varchar(100), origin varchar (100))";
       jdbcClient.getConnection(asyncresult -> {
          SQLConnection connection = asyncresult.result();
-         if (result.failed())
+         if (asyncresult.failed())
          {
-            fut.fail(result.cause());
+            next.handle(Future.failedFuture(asyncresult.cause()));
             return;
          }
-         connection.execute(
-                  sql,
+         connection.execute(sql,
                   ar -> {
                      if (ar.failed())
                      {
                         connection.close();
-                        fut.fail(ar.cause());
+                        next.handle(Future.failedFuture(ar.cause()));
                         return;
                      }
                      connection.query("SELECT * FROM Whisky",
@@ -63,7 +48,7 @@ public class WhiskyRepository
                                  if (select.failed())
                                  {
                                     connection.close();
-                                    fut.fail(ar.cause());
+                                    next.handle(Future.failedFuture(select.cause()));
                                     return;
                                  }
                                  if (select.result().getNumRows() == 0)
@@ -83,13 +68,13 @@ public class WhiskyRepository
       });
    }
 
-   public void getList(Handler<AsyncResult<Whisky>> next)
+   public void getList(Handler<AsyncResult<List<Whisky>>> next)
    {
       String sql = "SELECT * FROM Whisky";
       jdbcClient.getConnection(asyncresult -> {
          if (asyncresult.failed())
          {
-            next.handle(Future.<Whisky>failedFuture(asyncresult.cause()));
+            next.handle(Future.<List<Whisky>>failedFuture(asyncresult.cause()));
             return;
          }
          SQLConnection connection = asyncresult.result();
@@ -102,6 +87,8 @@ public class WhiskyRepository
             List<Whisky> whiskies =
                      result.result().getRows().stream()
                               .map(Whisky::new).collect(Collectors.toList());
+            next.handle(Future.succeededFuture(whiskies));
+            connection.close();
          });
       });
    }

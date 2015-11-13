@@ -1,4 +1,4 @@
-package io.vertx.blog.first.model;
+package io.flwertx.whisky.model;
 
 import io.vertx.core.json.JsonObject;
 
